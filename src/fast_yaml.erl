@@ -136,7 +136,15 @@ encode(B, _) when is_binary(B) ->
        fun($") -> [$\\, $"];
           (C) -> C
        end, binary_to_list(B)),
-     $"].
+     $"];
+encode({{_,_,_} = Date,{Hour,Min,Sec, 0}}, _) ->
+    encode({Date,{Hour,Min,Sec}});
+encode({{Year,Month,Day},{Hour,Min,Sec, Msec}}, _) ->
+    io_lib:format("~4.10.0B-~2.10.0B-~2.10.0B ~2.10.0B:~2.10.0B:~2.10.0B.~w",
+        [Year, Month, Day, Hour, Min, Sec, Msec]);
+encode({{Year,Month,Day},{Hour,Min,Sec}}, _) ->
+    io_lib:format("~4.10.0B-~2.10.0B-~2.10.0B ~2.10.0B:~2.10.0B:~2.10.0B",
+        [Year, Month, Day, Hour, Min, Sec]).
 
 encode_pair({K, V}, N) ->
     [encode(K), ": ", encode(V, N+2)].
@@ -177,7 +185,7 @@ load_nif_test() ->
 decode_test1_test() ->
     FileName = filename:join(["..", "test", "test1.yml"]),
     ?assertEqual(
-       {ok,[[{<<"Time">>,<<"2001-11-23 15:01:42 -5">>},
+       {ok,[[{<<"Time">>,<<"2001-11-23 15:01:42 Z">>},
              {<<"User">>,<<"ed">>},
              {<<"Warning">>,
               <<"This is an error message for the log file">>}],
@@ -235,5 +243,13 @@ decode_test4_test() ->
               <<"R0lGODlhDAAMAIQAAP//9/X\n17unp5WZmZgAAAOfn515eXv\n"
                 "Pz7Y6OjuDg4J+fn5OTk6enp\n56enmleECcgggoBADs=mZmE\n">>}]]},
        decode_from_file(FileName)).
+
+encode_datetime_plain_test() ->
+    Input = encode({{2017, 11, 7}, {19,46,0}}, 0),
+    ?assertEqual(<<"2017-11-07 19:46:00">>, iolist_to_binary(Input)).
+
+encode_datetime_msec_test() ->
+    Input = encode({{2017, 11, 7}, {19,46,0, 123456789}}, 0),
+    ?assertEqual(<<"2017-11-07 19:46:00.123456789">>, iolist_to_binary(Input)).
 
 -endif.
