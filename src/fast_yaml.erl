@@ -131,12 +131,13 @@ encode(F, _) when is_float(F) ->
 encode(A, _) when is_atom(A) ->
     atom_to_list(A);
 encode(B, _) when is_binary(B) ->
-    [$",
-     lists:map(
-       fun($") -> [$\\, $"];
-          (C) -> C
-       end, binary_to_list(B)),
-     $"];
+    Res = lists:map(
+            fun($") -> [$\\, $"];
+               ($\\) -> [$\\, $\\];
+               (C) -> (C)
+            end, unicode:characters_to_list(B)),
+
+    [$", lists:filter(fun permitted_unicode_character/1, Res), $"];
 encode({{_,_,_} = Date,{Hour,Min,Sec, 0}}, _) ->
     encode({Date,{Hour,Min,Sec}});
 encode({{Year,Month,Day},{Hour,Min,Sec, Msec}}, _) ->
@@ -145,6 +146,21 @@ encode({{Year,Month,Day},{Hour,Min,Sec, Msec}}, _) ->
 encode({{Year,Month,Day},{Hour,Min,Sec}}, _) ->
     io_lib:format("~4.10.0B-~2.10.0B-~2.10.0B ~2.10.0B:~2.10.0B:~2.10.0B",
         [Year, Month, Day, Hour, Min, Sec]).
+
+% Escape unicode control sequences specifically disallowed by YAML character set
+% specification.
+% Refer: http://www.yaml.org/spec/1.2/spec.html#id2770814
+permitted_unicode_character(C) when C == 9;
+                                 C == 10;
+                                 C == 13;
+                                 C == 133;
+                                 C >= 32 andalso C =< 126;
+                                 C >= 160 andalso C =< 55295;
+                                 C >= 57344 andalso C =< 65533;
+                                 C >= 65536 andalso C =< 1114111 ->
+    true;
+permitted_unicode_character(_C) ->
+    false.
 
 encode_pair({K, V}, N) ->
     [encode(K), ": ", encode(V, N+2)].
@@ -243,6 +259,13 @@ decode_test4_test() ->
               <<"R0lGODlhDAAMAIQAAP//9/X\n17unp5WZmZgAAAOfn515eXv\n"
                 "Pz7Y6OjuDg4J+fn5OTk6enp\n56enmleECcgggoBADs=mZmE\n">>}]]},
        decode_from_file(FileName)).
+
+encode_yaml_illegal_unicode_stripped_test() ->
+    % 12345\u0080\u0093\n
+    Input = unicode:characters_to_binary([49,50,51,52,53,128,147,10]),
+    % "12345\n"
+    Expected = unicode:characters_to_binary([34,49,50,51,52,53,10,34]),
+    ?assertEqual(Expected, unicode:characters_to_binary(encode(Input, 0))).
 
 encode_datetime_plain_test() ->
     Input = encode({{2017, 11, 7}, {19,46,0}}, 0),
