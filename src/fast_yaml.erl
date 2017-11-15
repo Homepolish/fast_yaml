@@ -139,9 +139,9 @@ encode(B, _) when is_binary(B) ->
      $"];
 encode({{_,_,_} = Date,{Hour,Min,Sec, 0}}, _) ->
     encode({Date,{Hour,Min,Sec}});
-encode({{Year,Month,Day},{Hour,Min,Sec, Msec}}, _) ->
-    io_lib:format("~4.10.0B-~2.10.0B-~2.10.0B ~2.10.0B:~2.10.0B:~2.10.0B.~w",
-        [Year, Month, Day, Hour, Min, Sec, Msec]);
+encode({{Year,Month,Day},{Hour,Min,Sec, Usec}}, _) ->
+    io_lib:format("~4.10.0B-~2.10.0B-~2.10.0B ~2.10.0B:~2.10.0B:~2.10.0B.~6.10.0B",
+        [Year, Month, Day, Hour, Min, Sec, Usec]);
 encode({{Year,Month,Day},{Hour,Min,Sec}}, _) ->
     io_lib:format("~4.10.0B-~2.10.0B-~2.10.0B ~2.10.0B:~2.10.0B:~2.10.0B",
         [Year, Month, Day, Hour, Min, Sec]).
@@ -248,8 +248,12 @@ encode_datetime_plain_test() ->
     Input = encode({{2017, 11, 7}, {19,46,0}}, 0),
     ?assertEqual(<<"2017-11-07 19:46:00">>, iolist_to_binary(Input)).
 
-encode_datetime_msec_test() ->
-    Input = encode({{2017, 11, 7}, {19,46,0, 123456789}}, 0),
-    ?assertEqual(<<"2017-11-07 19:46:00.123456789">>, iolist_to_binary(Input)).
+encode_datetime_usec_test() ->
+    Input = encode({{2017, 11, 7}, {19,46,0, 123456}}, 0),
+    ?assertEqual(<<"2017-11-07 19:46:00.123456">>, iolist_to_binary(Input)).
+
+encode_datetime_usec_padd_test() ->
+    Input = encode({{2017, 11, 7}, {19,46,0, 123}}, 0),
+    ?assertEqual(<<"2017-11-07 19:46:00.000123">>, iolist_to_binary(Input)).
 
 -endif.
